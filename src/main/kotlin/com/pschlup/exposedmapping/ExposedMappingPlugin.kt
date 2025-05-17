@@ -1,4 +1,4 @@
-package com.exposed.mapping
+package com.pschlup.exposedmapping
 
 import com.squareup.kotlinpoet.TypeName
 import org.gradle.api.Plugin
@@ -8,6 +8,7 @@ import java.net.URI
 import java.sql.ResultSet
 import javax.sql.DataSource
 
+@Suppress("unused")
 class ExposedMappingPlugin : Plugin<Project> {
   override fun apply(project: Project) {
     val extension = project.extensions.create("exposedMapping", ExposedMappingPluginExtension::class.java)
@@ -166,6 +167,7 @@ sealed class ColumnSpec(
     val isNullable: Boolean,
   ) : ColumnSpec(name = name)
 
+  @Suppress("unused")
   class EnumColumn(
     name: String,
     val enumType: String,

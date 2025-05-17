@@ -1,4 +1,4 @@
-package com.exposed.mapping
+package com.pschlup.exposedmapping
 
 import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.CodeBlock

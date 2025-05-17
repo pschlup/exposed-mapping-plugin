@@ -1,4 +1,4 @@
-package com.exposed.mapping.model
+package com.pschlup.exposedmapping.model
 
 import org.postgresql.util.PGobject
 
@@ -7,6 +7,7 @@ interface DbEnum {
 }
 
 /** Identifies an enum value in Postgresql */
+@Suppress("unused")
 internal class PgEnumValue<T : DbEnum>(
   enumTypeName: String,
   enumValue: T?,
