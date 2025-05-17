@@ -30,20 +30,20 @@ Configure the plugin in your build script:
 exposedMapping {
     // Package name for generated models (default: "com.example.model")
     packageName = "com.myapp.model"
-    
+
     // Output directory (default: "src/main/kotlin")
     outputDir = "src/main/kotlin"
-    
+
     // Database schemas to process (default: ["public"])
     schemas = listOf("public", "custom_schema")
-    
+
     // Database connection options (choose one approach)
-    
+
     // Option 1: JDBC URL
     jdbcUrl = "jdbc:postgresql://localhost:5432/mydb"
     user = "postgres"
     password = "password"
-    
+
     // Option 2: Individual properties
     serverName = "localhost"
     databaseName = "mydb"
@@ -96,10 +96,10 @@ class UserModel(id: EntityID<Int>) : IntEntity(id) {
     var email by Table.email
     var createdAt by Table.createdAt
     var role by Table.role
-    
+
     // Foreign key relationship
     var department by DepartmentModel referencedOn Table.departmentId
-    
+
     object Table : IntIdTable(name = "users") {
         val name = varchar("name", 255)
         val email = varchar("email", 255)
@@ -112,18 +112,36 @@ class UserModel(id: EntityID<Int>) : IntEntity(id) {
         )
         val departmentId = reference("department_id", DepartmentModel.Table)
     }
-    
+
     class BaseDao : IntEntityClass<UserModel>(Table, UserModel::class.java, { UserModel(it) }) {
         open fun insert(block: InsertStatement<Number>.() -> Unit) {
             Table.insert { block.invoke(it) }
         }
-        
+
         open fun update(id: Int, block: UpdateStatement.() -> Unit) {
             Table.update({ Table.id eq id }) { block.invoke(it) }
         }
     }
 }
 ```
+
+## Publishing the Plugin
+
+To publish this plugin to the Gradle Plugin Portal, follow these steps:
+
+1. Create an account on the [Gradle Plugin Portal](https://plugins.gradle.org/)
+2. Get your API key and secret from [your account settings](https://plugins.gradle.org/user/settings)
+3. Add your credentials to your user's gradle.properties file (~/.gradle/gradle.properties):
+   ```properties
+   gradle.publish.key=your-key-here
+   gradle.publish.secret=your-secret-here
+   ```
+4. Run the publish command:
+   ```bash
+   ./gradlew publishPlugins
+   ```
+
+The plugin will be published to the Gradle Plugin Portal and will be available for other developers to use.
 
 ## License
 
