@@ -17,7 +17,7 @@ Add the plugin to your project's build script:
 ```kotlin
 // build.gradle.kts
 plugins {
-    id("com.exposed.mapping.plugin") version "1.0.0"
+    id("com.pschlup.exposedmapping.plugin") version "1.0.0"
 }
 ```
 
