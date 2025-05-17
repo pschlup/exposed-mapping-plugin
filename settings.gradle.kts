@@ -1,1 +1,1 @@
-rootProject.name = "exposed-mapping-plugin"
+rootProject.name = "exposedmapping.plugin"

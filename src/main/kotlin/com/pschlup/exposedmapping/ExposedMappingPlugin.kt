@@ -13,9 +13,8 @@ class ExposedMappingPlugin : Plugin<Project> {
   override fun apply(project: Project) {
     val extension = project.extensions.create("exposedMapping", ExposedMappingPluginExtension::class.java)
 
-    project
-      .task("generateExposedMapping")
-      .doLast {
+    project.tasks.register("generateExposedMapping") {
+      doLast {
         println("****** Generating Exposed mapping classes")
 
         // Use the configured output directory or default to src/main/kotlin
@@ -53,6 +52,48 @@ class ExposedMappingPlugin : Plugin<Project> {
             sourceCode.writeTo(buildPath)
           }
       }
+    }
+//
+//    project
+//      .task("generateExposedMapping")
+//      .doLast {
+//        println("****** Generating Exposed mapping classes")
+//
+//        // Use the configured output directory or default to src/main/kotlin
+//        val buildPath =
+//          extension.outputDir?.let { project.file(it) }
+//            ?: project.layout.projectDirectory
+//              .file("src/main/kotlin")
+//              .asFile
+//
+//        // Ensure the output directory exists
+//        buildPath.mkdirs()
+//
+//        // Set the package name for generated models
+//        if (extension.packageName != null) {
+//          PACKAGE_NAME = extension.packageName!!
+//        }
+//
+//        val dataSource = getDatasource(extension)
+//
+//        // Generate Enum classes
+//        val enumSpecs = dataSource.getEnumTypes()
+//        val enumNames = enumSpecs.map { it.objectName }.toSet()
+//
+//        enumSpecs.forEach { enumSpec ->
+//          val sourceCode = generateEnum(enumSpec)
+//          sourceCode.writeTo(buildPath)
+//        }
+//
+//        val tables = dataSource.getTableNames(extension.schemas)
+//        tables
+//          .forEach { tableSpec ->
+//            println("Generating ORM mapping for table ${tableSpec.tableName}")
+//            val columns = dataSource.getColumnsForTable(tableSpec, enumNames)
+//            val sourceCode = generateModel(tableSpec.tableName, columns)
+//            sourceCode.writeTo(buildPath)
+//          }
+//      }
   }
 
   private fun getDatasource(extension: ExposedMappingPluginExtension): DataSource {

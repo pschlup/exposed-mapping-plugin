@@ -3,7 +3,7 @@ plugins {
   `kotlin-dsl`
   `maven-publish`
   kotlin("jvm") version "2.0.21"
-  id("com.gradle.plugin-publish") version "1.2.1"
+  id("com.gradle.plugin-publish") version "1.3.1"
 }
 
 repositories {
@@ -50,9 +50,17 @@ gradlePlugin {
 
 publishing {
   repositories {
-    maven {
-      name = "localRepo"
-      url = uri("$buildDir/repo")
+    // Publishes to ~/.m2/repository
+    mavenLocal()
+  }
+
+  publications {
+    create<MavenPublication>("maven") {
+      groupId = "com.pschlup"
+      artifactId = "exposedmapping.plugin"
+      version = "1.0.0"
+
+      from(components["java"])
     }
   }
 }
