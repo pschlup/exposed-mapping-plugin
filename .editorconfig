@@ -1,0 +1,8 @@
+root = true
+
+[*.{kt,kts}]
+indent_style = space
+indent_size = 2
+ktlint_standard_function-expression-body = disabled
+insert_final_newline = true
+ktlint_function_signature_body_expression_wrapping = always
