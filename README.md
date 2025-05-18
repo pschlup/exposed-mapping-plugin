@@ -103,7 +103,7 @@ class UserModel(id: EntityID<Int>) : IntEntity(id) {
     object Table : IntIdTable(name = "users") {
         val name = varchar("name", 255)
         val email = varchar("email", 255)
-        val createdAt = timestamp("created_at").default(Clock.System.now())
+        val createdAt = timestamp("created_at")
         val role = customEnumeration(
             name = "role",
             sql = "user_role",
