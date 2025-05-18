@@ -1,6 +1,16 @@
 package com.pschlup.exposedmapping
 
+import com.squareup.kotlinpoet.AnnotationSpec
+import com.squareup.kotlinpoet.ClassName
+import com.squareup.kotlinpoet.CodeBlock
+import com.squareup.kotlinpoet.FileSpec
+import com.squareup.kotlinpoet.FunSpec
+import com.squareup.kotlinpoet.KModifier
+import com.squareup.kotlinpoet.ParameterSpec
+import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.TypeName
+import com.squareup.kotlinpoet.TypeSpec
+import com.squareup.kotlinpoet.TypeVariableName
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.postgresql.ds.PGSimpleDataSource
@@ -29,7 +39,7 @@ class ExposedMappingPlugin : Plugin<Project> {
 
         // Set the package name for generated models
         if (extension.packageName != null) {
-          PACKAGE_NAME = extension.packageName!!
+          packageName = extension.packageName!!
         }
 
         val dataSource = getDatasource(extension)
@@ -43,6 +53,10 @@ class ExposedMappingPlugin : Plugin<Project> {
           sourceCode.writeTo(buildPath)
         }
 
+        // Generate PgEnumValue.kt
+        val pgEnumValueFile = generatePgEnumValueFile(packageName)
+        pgEnumValueFile.writeTo(buildPath)
+
         val tables = dataSource.getTableNames(extension.schemas)
         tables
           .forEach { tableSpec ->
@@ -53,47 +67,69 @@ class ExposedMappingPlugin : Plugin<Project> {
           }
       }
     }
-//
-//    project
-//      .task("generateExposedMapping")
-//      .doLast {
-//        println("****** Generating Exposed mapping classes")
-//
-//        // Use the configured output directory or default to src/main/kotlin
-//        val buildPath =
-//          extension.outputDir?.let { project.file(it) }
-//            ?: project.layout.projectDirectory
-//              .file("src/main/kotlin")
-//              .asFile
-//
-//        // Ensure the output directory exists
-//        buildPath.mkdirs()
-//
-//        // Set the package name for generated models
-//        if (extension.packageName != null) {
-//          PACKAGE_NAME = extension.packageName!!
-//        }
-//
-//        val dataSource = getDatasource(extension)
-//
-//        // Generate Enum classes
-//        val enumSpecs = dataSource.getEnumTypes()
-//        val enumNames = enumSpecs.map { it.objectName }.toSet()
-//
-//        enumSpecs.forEach { enumSpec ->
-//          val sourceCode = generateEnum(enumSpec)
-//          sourceCode.writeTo(buildPath)
-//        }
-//
-//        val tables = dataSource.getTableNames(extension.schemas)
-//        tables
-//          .forEach { tableSpec ->
-//            println("Generating ORM mapping for table ${tableSpec.tableName}")
-//            val columns = dataSource.getColumnsForTable(tableSpec, enumNames)
-//            val sourceCode = generateModel(tableSpec.tableName, columns)
-//            sourceCode.writeTo(buildPath)
-//          }
-//      }
+  }
+
+  private fun generatePgEnumValueFile(packageName: String): FileSpec {
+    // Create DbEnum interface
+    val dbEnumInterface =
+      TypeSpec
+        .interfaceBuilder("DbEnum")
+        .addProperty(
+          PropertySpec
+            .builder("value", String::class)
+            .addModifiers(KModifier.ABSTRACT)
+            .build(),
+        ).build()
+
+    // Create T type variable for PgEnumValue class
+    val tTypeVariable = TypeVariableName("T", ClassName(packageName, "DbEnum"))
+
+    // Create PgEnumValue class
+    val pgEnumValueClass =
+      TypeSpec
+        .classBuilder("PgEnumValue")
+        .addTypeVariable(tTypeVariable)
+        .addModifiers(KModifier.INTERNAL)
+        .addKdoc("Identifies an enum value in Postgresql")
+        .addAnnotation(
+          AnnotationSpec
+            .builder(Suppress::class)
+            .addMember("%S", "unused")
+            .build(),
+        ).primaryConstructor(
+          FunSpec
+            .constructorBuilder()
+            .addParameter("enumTypeName", String::class)
+            .addParameter(
+              ParameterSpec
+                .builder("enumValue", tTypeVariable.copy(nullable = true))
+                .build(),
+            ).build(),
+        ).superclass(ClassName("org.postgresql.util", "PGobject"))
+        .addInitializerBlock(
+          CodeBlock.of(
+            """
+            value = enumValue?.value
+            type = enumTypeName
+            """.trimIndent(),
+          ),
+        ).build()
+
+    // Create the file
+    return FileSpec
+      .builder(packageName, "PgEnumValue")
+      .addFileComment(
+        """
+        **************************************************************************************
+        **************************************************************************************
+          DO NOT MODIFY: Auto-generated model implementation based on the database structure
+          Original source: com.pschlup.exposedmapping.model.PgEnumValue
+        **************************************************************************************
+        **************************************************************************************
+        """.trimIndent(),
+      ).addType(dbEnumInterface)
+      .addType(pgEnumValueClass)
+      .build()
   }
 
   private fun getDatasource(extension: ExposedMappingPluginExtension): DataSource {
@@ -193,6 +229,7 @@ private fun DataSource.getColumnsForTable(
           size = getInt("COLUMN_SIZE"),
           type = typeName,
           isNullable = isNullable,
+          decimalDigits = getInt("DECIMAL_DIGITS"),
         )
       }
     }.toList()
@@ -206,6 +243,7 @@ sealed class ColumnSpec(
     val size: Int? = null,
     val type: String,
     val isNullable: Boolean,
+    val decimalDigits: Int,
   ) : ColumnSpec(name = name)
 
   @Suppress("unused")

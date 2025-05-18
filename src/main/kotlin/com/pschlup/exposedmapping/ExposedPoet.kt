@@ -14,8 +14,8 @@ import com.squareup.kotlinpoet.TypeName
 import com.squareup.kotlinpoet.TypeSpec
 import com.squareup.kotlinpoet.asClassName
 import com.squareup.kotlinpoet.asTypeName
-import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
+import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import org.jetbrains.exposed.dao.IntEntity
 import org.jetbrains.exposed.dao.IntEntityClass
@@ -24,12 +24,14 @@ import org.jetbrains.exposed.dao.id.IntIdTable
 import org.jetbrains.exposed.sql.Column
 import org.jetbrains.exposed.sql.statements.InsertStatement
 import org.jetbrains.exposed.sql.statements.UpdateStatement
-import java.util.*
+import java.math.BigDecimal
+import java.util.Locale
+import java.util.UUID
 import javax.money.MonetaryAmount
 import kotlin.time.Duration
 
 // Default package name for generated models - can be overridden via plugin configuration
-internal var PACKAGE_NAME = "com.example.model"
+internal var packageName = "com.example.model"
 
 internal fun generateEnum(enumSpec: EnumSpec): FileSpec {
   val className = enumSpec.objectName.toEnumClass()
@@ -37,7 +39,7 @@ internal fun generateEnum(enumSpec: EnumSpec): FileSpec {
   return FileSpec.builder(className) {
     addType(
       TypeSpec.enumBuilder(className) {
-        addSuperinterface(ClassName(PACKAGE_NAME, "DbEnum"))
+        addSuperinterface(ClassName(packageName, "DbEnum"))
         primaryConstructor(
           FunSpec.constructorBuilder {
             addParameter("value", String::class)
@@ -99,7 +101,7 @@ internal fun generateModel(
               type = column.toKotlinType(),
             ) {
               mutable(true)
-              delegate("%L.%L", "Table", column.name.toCamelCase())
+              delegate("%L.%L", "Table", column.name.toCamelCase().transformReservedWords())
             }
 
           is ColumnSpec.EnumColumn ->
@@ -119,7 +121,7 @@ internal fun generateModel(
             ) {
               mutable(true)
               delegate(
-                "%L.BaseDao() referencedOn %L.%L",
+                "%L.BaseDao().referencedOn(%L.%L)",
                 column.otherTable.toModelClassName(),
                 "Table",
                 column.name.toCamelCase(),
@@ -131,7 +133,7 @@ internal fun generateModel(
 
   return FileSpec.builder(className) {
     addImport("org.jetbrains.exposed.sql", "insert", "update")
-    addImport(PACKAGE_NAME, "PgEnumValue")
+    addImport(com.pschlup.exposedmapping.packageName, "PgEnumValue")
     addType(
       TypeSpec.classBuilder(className) {
         superclass(IntEntity::class)
@@ -167,7 +169,7 @@ private fun generateTableObject(
         when (column) {
           is ColumnSpec.SimpleColumn ->
             PropertySpec.builder(
-              name = column.name.toCamelCase(),
+              name = column.name.toCamelCase().transformReservedWords(),
               type = column.toColumnType(),
             ) {
               initializer(column.toInitializerBlock())
@@ -200,6 +202,12 @@ private fun generateTableObject(
     }
   }
 }
+
+private fun String.transformReservedWords(): String =
+  when (this) {
+    "source" -> "sourceColumn"
+    else -> this
+  }
 
 /** Generates an abstract DAO class providing access to standard ORM functions like insert() and update() */
 private fun generateDao(className: ClassName): TypeSpec {
@@ -261,13 +269,13 @@ private fun ColumnSpec.SimpleColumn.toColumnType(): ParameterizedTypeName {
 /** Converts a table name to a reference to the class of its corresponding model, e.g. "account" => "AccountModel" */
 private fun String.toModelClass() =
   ClassName(
-    packageName = PACKAGE_NAME,
+    packageName = packageName,
     this.toModelClassName(),
   )
 
 internal fun String.toEnumClass(): ClassName =
   ClassName(
-    packageName = PACKAGE_NAME,
+    packageName = packageName,
     this.toEnumClassName(),
   )
 
@@ -294,9 +302,13 @@ private fun ColumnSpec.SimpleColumn.toKotlinType(): TypeName {
       "varchar" -> String::class.asTypeName()
       "text" -> String::class.asTypeName()
       "timezone" -> TimeZone::class.asTypeName()
+      "timestamp" -> Instant::class.asTypeName()
       "timestamptz" -> Instant::class.asTypeName()
       "interval" -> Duration::class.asTypeName()
+      "date" -> LocalDate::class.asTypeName()
       "monetary_amount" -> MonetaryAmount::class.asTypeName()
+      "numeric" -> BigDecimal::class.asTypeName()
+      "decimal" -> BigDecimal::class.asTypeName()
       "int4" -> Int::class.asTypeName()
       "int8" -> Long::class.asTypeName()
       "bool" -> Boolean::class.asTypeName()
@@ -313,13 +325,18 @@ private fun ColumnSpec.SimpleColumn.toInitializerBlock(): CodeBlock {
   return CodeBlock.builder {
     when (type) {
       "uuid" -> add("uuid(%S)", name)
-      "timestamptz" -> add("%M(%S).default(%T.System.now())", timestampInitializer, name, Clock::class)
+      "timestamptz" -> add("%M(%S)", timestampInitializer, name)
+      "timestamp" -> add("%M(%S)", timestampInitializer, name)
+      "timezone" -> add("timezone(%S)", name)
+      "date" -> add("%M(%S)", localDateInitializer, name)
       "interval" -> add("duration(%S)", name)
       "monetary_amount" -> add("monetaryAmount(%S)", name)
+      "numeric" -> add("decimal(%S, %L, %L)", name, size, decimalDigits)
+      "decimal" -> add("decimal(%S, %L, %L)", name, size, decimalDigits)
       "int4" -> add("integer(%S)", name)
+      "int8" -> add("long(%S)", name)
       "text" -> add("%L(%S)", type, name)
       "bool" -> add("%L(%S)", type, name)
-      "timezone" -> add("timezone(%S)", name)
       else -> {
         add("%L(%S, %L)", type, name, size)
       }
@@ -350,6 +367,10 @@ private fun ColumnSpec.EnumColumn.toInitializerBlock(): CodeBlock {
 // References the extension function Table.timestamp
 private val timestampInitializer =
   MemberName("org.jetbrains.exposed.sql.kotlin.datetime", "timestamp")
+
+// References the extension function Table.date
+private val localDateInitializer =
+  MemberName("org.jetbrains.exposed.sql.kotlin.datetime", "date")
 
 // References the extension function Table.duration
 private val intervalInitializer =
