@@ -123,7 +123,6 @@ class ExposedMappingPlugin : Plugin<Project> {
         **************************************************************************************
         **************************************************************************************
           DO NOT MODIFY: Auto-generated model implementation based on the database structure
-          Original source: com.pschlup.exposedmapping.model.PgEnumValue
         **************************************************************************************
         **************************************************************************************
         """.trimIndent(),
